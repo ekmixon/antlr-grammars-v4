@@ -99,11 +99,7 @@ def pipe(*, duplex=False, overlapped=(True, True), bufsize=BUFSIZE):
     if overlapped[0]:
         openmode |= _winapi.FILE_FLAG_OVERLAPPED
 
-    if overlapped[1]:
-        flags_and_attribs = _winapi.FILE_FLAG_OVERLAPPED
-    else:
-        flags_and_attribs = 0
-
+    flags_and_attribs = _winapi.FILE_FLAG_OVERLAPPED if overlapped[1] else 0
     h1 = h2 = None
     try:
         h1 = _winapi.CreateNamedPipe(
@@ -137,11 +133,8 @@ class PipeHandle:
         self._handle = handle
 
     def __repr__(self):
-        if self._handle is not None:
-            handle = 'handle=%r' % self._handle
-        else:
-            handle = 'closed'
-        return '<%s %s>' % (self.__class__.__name__, handle)
+        handle = 'handle=%r' % self._handle if self._handle is not None else 'closed'
+        return f'<{self.__class__.__name__} {handle}>'
 
     @property
     def handle(self):

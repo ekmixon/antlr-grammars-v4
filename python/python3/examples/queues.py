@@ -38,10 +38,7 @@ class Queue:
     """
 
     def __init__(self, maxsize=0, *, loop=None):
-        if loop is None:
-            self._loop = events.get_event_loop()
-        else:
-            self._loop = loop
+        self._loop = events.get_event_loop() if loop is None else loop
         self._maxsize = maxsize
 
         # Futures.
@@ -79,18 +76,18 @@ class Queue:
             type(self).__name__, id(self), self._format())
 
     def __str__(self):
-        return '<{} {}>'.format(type(self).__name__, self._format())
+        return f'<{type(self).__name__} {self._format()}>'
 
     def _format(self):
         result = 'maxsize={!r}'.format(self._maxsize)
         if getattr(self, '_queue', None):
             result += ' _queue={!r}'.format(list(self._queue))
         if self._getters:
-            result += ' _getters[{}]'.format(len(self._getters))
+            result += f' _getters[{len(self._getters)}]'
         if self._putters:
-            result += ' _putters[{}]'.format(len(self._putters))
+            result += f' _putters[{len(self._putters)}]'
         if self._unfinished_tasks:
-            result += ' tasks={}'.format(self._unfinished_tasks)
+            result += f' tasks={self._unfinished_tasks}'
         return result
 
     def qsize(self):
@@ -112,10 +109,7 @@ class Queue:
         Note: if the Queue was initialized with maxsize=0 (the default),
         then full() is never True.
         """
-        if self._maxsize <= 0:
-            return False
-        else:
-            return self.qsize() >= self._maxsize
+        return False if self._maxsize <= 0 else self.qsize() >= self._maxsize
 
     @coroutine
     def put(self, item):

@@ -13,7 +13,7 @@ def _task_repr_info(task):
         info[0] = 'cancelling'
 
     coro = coroutines._format_coroutine(task._coro)
-    info.insert(1, 'coro=<%s>' % coro)
+    info.insert(1, f'coro=<{coro}>')
 
     if task._fut_waiter is not None:
         info.insert(2, 'wait_for=%r' % task._fut_waiter)

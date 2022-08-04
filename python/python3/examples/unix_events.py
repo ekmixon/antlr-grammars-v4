@@ -112,7 +112,7 @@ class _UnixSelectorEventLoop(selector_events.BaseSelectorEventLoop):
                     logger.info('set_wakeup_fd(-1) failed: %s', nexc)
 
             if exc.errno == errno.EINVAL:
-                raise RuntimeError('sig {} cannot be caught'.format(sig))
+                raise RuntimeError(f'sig {sig} cannot be caught')
             else:
                 raise
 
@@ -146,7 +146,7 @@ class _UnixSelectorEventLoop(selector_events.BaseSelectorEventLoop):
             signal.signal(sig, handler)
         except OSError as exc:
             if exc.errno == errno.EINVAL:
-                raise RuntimeError('sig {} cannot be caught'.format(sig))
+                raise RuntimeError(f'sig {sig} cannot be caught')
             else:
                 raise
 
@@ -168,8 +168,7 @@ class _UnixSelectorEventLoop(selector_events.BaseSelectorEventLoop):
             raise TypeError('sig must be an int, not {!r}'.format(sig))
 
         if not (1 <= sig < signal.NSIG):
-            raise ValueError(
-                'sig {} out of range(1, {})'.format(sig, signal.NSIG))
+            raise ValueError(f'sig {sig} out of range(1, {signal.NSIG})')
 
     def _make_read_pipe_transport(self, pipe, protocol, waiter=None,
                                   extra=None):
@@ -221,9 +220,8 @@ class _UnixSelectorEventLoop(selector_events.BaseSelectorEventLoop):
             if server_hostname is None:
                 raise ValueError(
                     'you have to pass server_hostname when using ssl')
-        else:
-            if server_hostname is not None:
-                raise ValueError('server_hostname is only meaningful with ssl')
+        elif server_hostname is not None:
+            raise ValueError('server_hostname is only meaningful with ssl')
 
         if path is not None:
             if sock is not None:
@@ -281,13 +279,12 @@ class _UnixSelectorEventLoop(selector_events.BaseSelectorEventLoop):
                 sock.bind(path)
             except OSError as exc:
                 sock.close()
-                if exc.errno == errno.EADDRINUSE:
-                    # Let's improve the error message by adding
-                    # with what exact address it occurs.
-                    msg = 'Address {!r} is already in use'.format(path)
-                    raise OSError(errno.EADDRINUSE, msg) from None
-                else:
+                if exc.errno != errno.EADDRINUSE:
                     raise
+                # Let's improve the error message by adding
+                # with what exact address it occurs.
+                msg = 'Address {!r} is already in use'.format(path)
+                raise OSError(errno.EADDRINUSE, msg) from None
             except:
                 sock.close()
                 raise
@@ -360,13 +357,12 @@ class _UnixReadPipeTransport(transports.ReadTransport):
             info.append('closed')
         elif self._closing:
             info.append('closing')
-        info.append('fd=%s' % self._fileno)
+        info.append(f'fd={self._fileno}')
         selector = getattr(self._loop, '_selector', None)
         if self._pipe is not None and selector is not None:
-            polling = selector_events._test_selector_event(
-                          selector,
-                          self._fileno, selectors.EVENT_READ)
-            if polling:
+            if polling := selector_events._test_selector_event(
+                selector, self._fileno, selectors.EVENT_READ
+            ):
                 info.append('polling')
             else:
                 info.append('idle')
@@ -374,7 +370,7 @@ class _UnixReadPipeTransport(transports.ReadTransport):
             info.append('open')
         else:
             info.append('closed')
-        return '<%s>' % ' '.join(info)
+        return f"<{' '.join(info)}>"
 
     def _read_ready(self):
         try:
@@ -498,24 +494,23 @@ class _UnixWritePipeTransport(transports._FlowControlMixin,
             info.append('closed')
         elif self._closing:
             info.append('closing')
-        info.append('fd=%s' % self._fileno)
+        info.append(f'fd={self._fileno}')
         selector = getattr(self._loop, '_selector', None)
         if self._pipe is not None and selector is not None:
-            polling = selector_events._test_selector_event(
-                          selector,
-                          self._fileno, selectors.EVENT_WRITE)
-            if polling:
+            if polling := selector_events._test_selector_event(
+                selector, self._fileno, selectors.EVENT_WRITE
+            ):
                 info.append('polling')
             else:
                 info.append('idle')
 
             bufsize = self.get_write_buffer_size()
-            info.append('bufsize=%s' % bufsize)
+            info.append(f'bufsize={bufsize}')
         elif self._pipe is not None:
             info.append('open')
         else:
             info.append('closed')
-        return '<%s>' % ' '.join(info)
+        return f"<{' '.join(info)}>"
 
     def get_write_buffer_size(self):
         return len(self._buffer)

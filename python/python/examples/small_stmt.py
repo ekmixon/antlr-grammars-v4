@@ -23,36 +23,3 @@ def g():
 
 # RAISE test FROM test
 raise a from b
-
-# RAISE test
-raise a
-
-try:
-    a
-except:
-    # RAISE
-    raise
-
-# global_stmt: GLOBAL name (COMMA name)*
-
-# GLOBAL name
-global a
-
-# GLOBAL name COMMA name
-global a, b
-
-# assert_stmt: ASSERT test (COMMA test)?
-
-# ASSERT test
-assert a
-
-# ASSERT test COMMA test
-assert a, b
-
-# nonlocal_stmt: NONLOCAL name (COMMA name)*
-
-# NONLOCAL name
-nonlocal a
-
-# NONLOCAL name (COMMA name)
-nonlocal a, v

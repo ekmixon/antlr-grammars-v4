@@ -13,9 +13,6 @@ except Exception as ex:
     pass
 except:
     pass
-else:
-    pass
-
 # TRY COLON suite except_clause finaly_clause
 try:
     pass

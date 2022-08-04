@@ -41,7 +41,7 @@ class PhpLexerBase(Lexer):
     def nextToken(self):
         token = super(PhpLexerBase, self).nextToken()
 
-        if token.type == self.PHPEnd or token.type == self.PHPEndSingleLineComment:
+        if token.type in [self.PHPEnd, self.PHPEndSingleLineComment]:
             if self._mode == self.SingleLineCommentMode:
                 # SingleLineCommentMode for such allowed syntax:
                 # // <?php echo "Hello world"; // comment ?>
@@ -51,17 +51,16 @@ class PhpLexerBase(Lexer):
             if token.text == "</script>":
                 self._phpScript = False
                 token.type = self.HtmlScriptClose
+            elif self._prevTokenType in [
+                self.SemiColon,
+                self.Colon,
+                self.OpenCurlyBracket,
+                self.CloseCurlyBracket,
+            ]:
+                token = super(PhpLexerBase, self).nextToken()
             else:
-                # Add semicolon to the end of statement if it is absent.
-                # For example: <?php echo "Hello world" ?>
-                if self._prevTokenType == self.SemiColon or \
-                        self._prevTokenType == self.Colon or \
-                        self._prevTokenType == self.OpenCurlyBracket or \
-                        self._prevTokenType == self.CloseCurlyBracket:
-                    token = super(PhpLexerBase, self).nextToken()
-                else:
-                    token = CommonToken(type=self.SemiColon)
-                    token.text = ';'
+                token = CommonToken(type=self.SemiColon)
+                token.text = ';'
         elif token.type == self.HtmlName:
             self._htmlNameText = token.text
         elif token.type == self.HtmlDoubleQuoteString:
@@ -69,19 +68,18 @@ class PhpLexerBase(Lexer):
                 self._phpScript = True
         elif self._mode == self.HereDoc:
             # Heredoc and Nowdoc syntax support: http://php.net/manual/en/language.types.string.php#language.types.string.syntax.heredoc
-            if token.type == self.StartHereDoc or token.type == self.StartNowDoc:
+            if token.type in [self.StartHereDoc, self.StartNowDoc]:
                 self._heredocIdentifier = token.text[3:].strip().replace("'", "")
-            if token.type == self.HereDocText:
-                if self.CheckHeredocEnd(token.text):
-                    self.popMode()
-                    heredoc_identifier = self.GetHeredocEnd(token.text)
-                    if token.text.strip().endswith(';'):
-                        text = heredoc_identifier + ";\n"
-                        token = CommonToken(type=self.SemiColon)
-                        token.text = text
-                    else:
-                        token = super(PhpLexerBase, self).nextToken()
-                        token.text = heredoc_identifier + "\n;"
+            if token.type == self.HereDocText and self.CheckHeredocEnd(token.text):
+                self.popMode()
+                heredoc_identifier = self.GetHeredocEnd(token.text)
+                if token.text.strip().endswith(';'):
+                    text = heredoc_identifier + ";\n"
+                    token = CommonToken(type=self.SemiColon)
+                    token.text = text
+                else:
+                    token = super(PhpLexerBase, self).nextToken()
+                    token.text = heredoc_identifier + "\n;"
         elif self._mode == self.PHP:
             if self._channel == self.HIDDEN:
                 self._prevTokenType = token.type
@@ -122,7 +120,7 @@ class PhpLexerBase(Lexer):
             self.popMode()
 
     def ShouldPushHereDocMode(self, pos):
-        return self._input.LA(pos) == ord('\r') or self._input.LA(pos) == ord('\n')
+        return self._input.LA(pos) in [ord('\r'), ord('\n')]
 
     def IsCurlyDollar(self, pos):
         return self._input.LA(pos) == ord('$')

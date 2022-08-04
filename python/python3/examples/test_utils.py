@@ -42,10 +42,7 @@ else:
 
 
 def dummy_ssl_context():
-    if ssl is None:
-        return None
-    else:
-        return ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+    return None if ssl is None else ssl.SSLContext(ssl.PROTOCOL_SSLv23)
 
 
 def run_briefly(loop):
@@ -123,12 +120,9 @@ class SSLWSGIServerMixin:
         context.load_cert_chain(certfile, keyfile)
 
         ssock = context.wrap_socket(request, server_side=True)
-        try:
+        with contextlib.suppress(OSError):
             self.RequestHandlerClass(ssock, client_address, self)
             ssock.close()
-        except OSError:
-            # maybe socket has been closed by peer
-            pass
 
 
 class SSLWSGIServer(SSLWSGIServerMixin, SilentWSGIServer):
@@ -211,10 +205,8 @@ if hasattr(socket, 'AF_UNIX'):
         try:
             yield path
         finally:
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(path)
-            except OSError:
-                pass
 
 
     @contextlib.contextmanager
@@ -233,12 +225,12 @@ def run_test_server(*, host='127.0.0.1', port=0, use_ssl=False):
 
 
 def make_test_protocol(base):
-    dct = {}
-    for name in dir(base):
-        if name.startswith('__') and name.endswith('__'):
-            # skip magic names
-            continue
-        dct[name] = MockCallback(return_value=None)
+    dct = {
+        name: MockCallback(return_value=None)
+        for name in dir(base)
+        if not name.startswith('__') or not name.endswith('__')
+    }
+
     return type('TestProtocol', (base,) + base.__bases__, dct)()
 
 
@@ -334,7 +326,7 @@ class TestLoop(base_events.BaseEventLoop):
             return False
 
     def assert_reader(self, fd, callback, *args):
-        assert fd in self.readers, 'fd {} is not registered'.format(fd)
+        assert fd in self.readers, f'fd {fd} is not registered'
         handle = self.readers[fd]
         assert handle._callback == callback, '{!r} != {!r}'.format(
             handle._callback, callback)
@@ -353,7 +345,7 @@ class TestLoop(base_events.BaseEventLoop):
             return False
 
     def assert_writer(self, fd, callback, *args):
-        assert fd in self.writers, 'fd {} is not registered'.format(fd)
+        assert fd in self.writers, f'fd {fd} is not registered'
         handle = self.writers[fd]
         assert handle._callback == callback, '{!r} != {!r}'.format(
             handle._callback, callback)

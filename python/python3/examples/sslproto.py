@@ -153,7 +153,7 @@ class _SSLPipe(object):
         self._state = _SHUTDOWN
         self._shutdown_cb = callback
         ssldata, appdata = self.feed_ssldata(b'')
-        assert appdata == [] or appdata == [b'']
+        assert appdata in [[], [b'']]
         return ssldata
 
     def feed_eof(self):
@@ -164,7 +164,7 @@ class _SSLPipe(object):
         """
         self._incoming.write_eof()
         ssldata, appdata = self.feed_ssldata(b'')
-        assert appdata == [] or appdata == [b'']
+        assert appdata in [[], [b'']]
 
     def feed_ssldata(self, data, only_handshake=False):
         """Feed SSL record level data into the pipe.
@@ -183,10 +183,7 @@ class _SSLPipe(object):
         """
         if self._state == _UNWRAPPED:
             # If unwrapped, pass plaintext data straight through.
-            if data:
-                appdata = [data]
-            else:
-                appdata = []
+            appdata = [data] if data else []
             return ([], appdata)
 
         self._need_ssldata = False
@@ -258,10 +255,7 @@ class _SSLPipe(object):
         assert 0 <= offset <= len(data)
         if self._state == _UNWRAPPED:
             # pass through data in unwrapped mode
-            if offset < len(data):
-                ssldata = [data[offset:]]
-            else:
-                ssldata = []
+            ssldata = [data[offset:]] if offset < len(data) else []
             return (ssldata, len(data))
 
         ssldata = []
@@ -533,8 +527,7 @@ class SSLProtocol(protocols.Protocol):
             self._wakeup_waiter(ConnectionResetError)
 
             if not self._in_handshake:
-                keep_open = self._app_protocol.eof_received()
-                if keep_open:
+                if keep_open := self._app_protocol.eof_received():
                     logger.warning('returning true from eof_received() '
                                    'has no effect when using ssl')
         finally:
@@ -578,12 +571,11 @@ class SSLProtocol(protocols.Protocol):
                 raise handshake_exc
 
             peercert = sslobj.getpeercert()
-            if not hasattr(self._sslcontext, 'check_hostname'):
-                # Verify hostname if requested, Python 3.4+ uses check_hostname
-                # and checks the hostname in do_handshake()
-                if (self._server_hostname
-                and self._sslcontext.verify_mode != ssl.CERT_NONE):
-                    ssl.match_hostname(peercert, self._server_hostname)
+            if not hasattr(self._sslcontext, 'check_hostname') and (
+                self._server_hostname
+                and self._sslcontext.verify_mode != ssl.CERT_NONE
+            ):
+                ssl.match_hostname(peercert, self._server_hostname)
         except BaseException as exc:
             if self._loop.get_debug():
                 if isinstance(exc, ssl.CertificateError):
@@ -627,7 +619,7 @@ class SSLProtocol(protocols.Protocol):
             return
 
         try:
-            for i in range(len(self._write_backlog)):
+            for _ in range(len(self._write_backlog)):
                 data, offset = self._write_backlog[0]
                 if data:
                     ssldata, offset = self._sslpipe.feed_appdata(data, offset)

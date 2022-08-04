@@ -150,19 +150,18 @@ class Task(futures.Future):
         """
         if self.done():
             return False
-        if self._fut_waiter is not None:
-            if self._fut_waiter.cancel():
-                # Leave self._fut_waiter; it may be a Task that
-                # catches and ignores the cancellation so we may have
-                # to cancel it again later.
-                return True
+        if self._fut_waiter is not None and self._fut_waiter.cancel():
+            # Leave self._fut_waiter; it may be a Task that
+            # catches and ignores the cancellation so we may have
+            # to cancel it again later.
+            return True
         # It must be the case that self._step is already scheduled.
         self._must_cancel = True
         return True
 
     def _step(self, exc=None):
         assert not self.done(), \
-            '_step(): already done: {!r}, {!r}'.format(self, exc)
+                '_step(): already done: {!r}, {!r}'.format(self, exc)
         if self._must_cancel:
             if not isinstance(exc, futures.CancelledError):
                 exc = futures.CancelledError()
@@ -173,12 +172,7 @@ class Task(futures.Future):
         self.__class__._current_tasks[self._loop] = self
         # Call either coro.throw(exc) or coro.send(None).
         try:
-            if exc is None:
-                # We use the `send` method directly, because coroutines
-                # don't have `__iter__` and `__next__` methods.
-                result = coro.send(None)
-            else:
-                result = coro.throw(exc)
+            result = coro.send(None) if exc is None else coro.throw(exc)
         except StopIteration as exc:
             self.set_result(exc.value)
         except futures.CancelledError:
@@ -209,9 +203,8 @@ class Task(futures.Future):
                         result._asyncio_future_blocking = False
                         result.add_done_callback(self._wakeup)
                         self._fut_waiter = result
-                        if self._must_cancel:
-                            if self._fut_waiter.cancel():
-                                self._must_cancel = False
+                        if self._must_cancel and self._fut_waiter.cancel():
+                            self._must_cancel = False
                 else:
                     self._loop.call_soon(
                         self._step,
@@ -293,11 +286,11 @@ def wait(fs, *, loop=None, timeout=None, return_when=ALL_COMPLETED):
     when the timeout occurs are returned in the second set.
     """
     if futures.isfuture(fs) or coroutines.iscoroutine(fs):
-        raise TypeError("expect a list of futures, not %s" % type(fs).__name__)
+        raise TypeError(f"expect a list of futures, not {type(fs).__name__}")
     if not fs:
         raise ValueError('Set of coroutines/Futures is empty.')
     if return_when not in (FIRST_COMPLETED, FIRST_EXCEPTION, ALL_COMPLETED):
-        raise ValueError('Invalid return_when value: {}'.format(return_when))
+        raise ValueError(f'Invalid return_when value: {return_when}')
 
     if loop is None:
         loop = events.get_event_loop()
@@ -350,10 +343,9 @@ def wait_for(fut, timeout, *, loop=None):
 
         if fut.done():
             return fut.result()
-        else:
-            fut.remove_done_callback(cb)
-            fut.cancel()
-            raise futures.TimeoutError()
+        fut.remove_done_callback(cb)
+        fut.cancel()
+        raise futures.TimeoutError()
     finally:
         timeout_handle.cancel()
 
@@ -422,7 +414,7 @@ def as_completed(fs, *, loop=None, timeout=None):
     Note: The futures 'f' are not necessarily members of fs.
     """
     if futures.isfuture(fs) or coroutines.iscoroutine(fs):
-        raise TypeError("expect a list of futures, not %s" % type(fs).__name__)
+        raise TypeError(f"expect a list of futures, not {type(fs).__name__}")
     loop = loop if loop is not None else events.get_event_loop()
     todo = {ensure_future(f, loop=loop) for f in set(fs)}
     from .queues import Queue  # Import here to avoid circular import problem.

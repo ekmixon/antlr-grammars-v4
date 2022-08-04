@@ -6,7 +6,7 @@
 [x]
 
 # star_expr comp_for
-[z for z in a]
+list(a)
 
 # test COMMA star_expr COMMA
 [x, *a,]

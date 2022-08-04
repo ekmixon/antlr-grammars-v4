@@ -46,8 +46,7 @@ def _format_args_and_kwargs(args, kwargs):
     if args:
         items.extend(reprlib.repr(arg) for arg in args)
     if kwargs:
-        items.extend('{}={}'.format(k, reprlib.repr(v))
-                     for k, v in kwargs.items())
+        items.extend(f'{k}={reprlib.repr(v)}' for k, v in kwargs.items())
     return '(' + ', '.join(items) + ')'
 
 
@@ -70,8 +69,7 @@ def _format_callback(func, args, kwargs, suffix=''):
 
 def _format_callback_source(func, args):
     func_repr = _format_callback(func, args, None)
-    source = _get_function_source(func)
-    if source:
+    if source := _get_function_source(func):
         func_repr += ' at %s:%s' % source
     return func_repr
 
@@ -101,14 +99,14 @@ class Handle:
             info.append(_format_callback_source(self._callback, self._args))
         if self._source_traceback:
             frame = self._source_traceback[-1]
-            info.append('created at %s:%s' % (frame[0], frame[1]))
+            info.append(f'created at {frame[0]}:{frame[1]}')
         return info
 
     def __repr__(self):
         if self._repr is not None:
             return self._repr
         info = self._repr_info()
-        return '<%s>' % ' '.join(info)
+        return f"<{' '.join(info)}>"
 
     def cancel(self):
         if not self._cancelled:
@@ -126,7 +124,7 @@ class Handle:
             self._callback(*self._args)
         except Exception as exc:
             cb = _format_callback_source(self._callback, self._args)
-            msg = 'Exception in callback {}'.format(cb)
+            msg = f'Exception in callback {cb}'
             context = {
                 'message': msg,
                 'exception': exc,
@@ -154,7 +152,7 @@ class TimerHandle(Handle):
     def _repr_info(self):
         info = super()._repr_info()
         pos = 2 if self._cancelled else 1
-        info.insert(pos, 'when=%s' % self._when)
+        info.insert(pos, f'when={self._when}')
         return info
 
     def __hash__(self):
@@ -164,17 +162,13 @@ class TimerHandle(Handle):
         return self._when < other._when
 
     def __le__(self, other):
-        if self._when < other._when:
-            return True
-        return self.__eq__(other)
+        return True if self._when < other._when else self.__eq__(other)
 
     def __gt__(self, other):
         return self._when > other._when
 
     def __ge__(self, other):
-        if self._when > other._when:
-            return True
-        return self.__eq__(other)
+        return True if self._when > other._when else self.__eq__(other)
 
     def __eq__(self, other):
         if isinstance(other, TimerHandle):

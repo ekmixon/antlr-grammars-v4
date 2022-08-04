@@ -76,12 +76,11 @@ def _format_pipe(fd):
 def _set_reuseport(sock):
     if not hasattr(socket, 'SO_REUSEPORT'):
         raise ValueError('reuse_port not supported by socket module')
-    else:
-        try:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-        except OSError:
-            raise ValueError('reuse_port not supported by socket module, '
-                             'SO_REUSEPORT defined but not implemented.')
+    try:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    except OSError:
+        raise ValueError('reuse_port not supported by socket module, '
+                         'SO_REUSEPORT defined but not implemented.')
 
 
 def _is_stream_socket(sock):
@@ -163,14 +162,13 @@ def _ensure_resolved(address, *, family=0, type=socket.SOCK_STREAM, proto=0,
                      flags=0, loop):
     host, port = address[:2]
     info = _ipaddr_info(host, port, family, type, proto)
-    if info is not None:
-        # "host" is already a resolved IP.
-        fut = loop.create_future()
-        fut.set_result([info])
-        return fut
-    else:
+    if info is None:
         return loop.getaddrinfo(host, port, family=family, type=type,
                                 proto=proto, flags=flags)
+    # "host" is already a resolved IP.
+    fut = loop.create_future()
+    fut.set_result([info])
+    return fut
 
 
 def _run_until_complete_cb(fut):
@@ -266,9 +264,7 @@ class BaseEventLoop(events.AbstractEventLoop):
         self._asyncgens_shutdown_called = False
 
     def __repr__(self):
-        return ('<%s running=%s closed=%s debug=%s>'
-                % (self.__class__.__name__, self.is_running(),
-                   self.is_closed(), self.get_debug()))
+        return f'<{self.__class__.__name__} running={self.is_running()} closed={self.is_closed()} debug={self.get_debug()}>'
 
     def create_future(self):
         """Create a Future object attached to the loop."""
@@ -582,8 +578,7 @@ class BaseEventLoop(events.AbstractEventLoop):
     def _check_callback(self, callback, method):
         if (coroutines.iscoroutine(callback) or
                 coroutines.iscoroutinefunction(callback)):
-            raise TypeError(
-                "coroutines cannot be used with {}()".format(method))
+            raise TypeError(f"coroutines cannot be used with {method}()")
         if not callable(callback):
             raise TypeError(
                 'a callable object was expected by {}(), got {!r}'.format(
@@ -631,9 +626,9 @@ class BaseEventLoop(events.AbstractEventLoop):
             self._check_callback(func, 'run_in_executor')
         if executor is None:
             executor = self._default_executor
-            if executor is None:
-                executor = concurrent.futures.ThreadPoolExecutor()
-                self._default_executor = executor
+        if executor is None:
+            executor = concurrent.futures.ThreadPoolExecutor()
+            self._default_executor = executor
         return futures.wrap_future(executor.submit(func, *args), loop=self)
 
     def set_default_executor(self, executor):
@@ -774,15 +769,16 @@ class BaseEventLoop(events.AbstractEventLoop):
             else:
                 if len(exceptions) == 1:
                     raise exceptions[0]
-                else:
-                    # If they all have the same str(), raise one.
-                    model = str(exceptions[0])
-                    if all(str(exc) == model for exc in exceptions):
-                        raise exceptions[0]
+                # If they all have the same str(), raise one.
+                model = str(exceptions[0])
+                if all(str(exc) == model for exc in exceptions):
+                    raise exceptions[0]
                     # Raise a combined exception so the user can see all
                     # the various error messages.
-                    raise OSError('Multiple exceptions: {}'.format(
-                        ', '.join(str(exc) for exc in exceptions)))
+                raise OSError(
+                    f"Multiple exceptions: {', '.join((str(exc) for exc in exceptions))}"
+                )
+
 
         else:
             if sock is None:
@@ -851,17 +847,17 @@ class BaseEventLoop(events.AbstractEventLoop):
                             family=family, proto=proto, flags=flags,
                             reuse_address=reuse_address, reuse_port=reuse_port,
                             allow_broadcast=allow_broadcast)
-                problems = ', '.join(
-                    '{}={}'.format(k, v) for k, v in opts.items() if v)
+                problems = ', '.join(f'{k}={v}' for k, v in opts.items() if v)
                 raise ValueError(
-                    'socket modifier keyword arguments can not be used '
-                    'when sock is specified. ({})'.format(problems))
+                    f'socket modifier keyword arguments can not be used when sock is specified. ({problems})'
+                )
+
             sock.setblocking(False)
             r_addr = None
         else:
-            if not (local_addr or remote_addr):
-                if family == 0:
-                    raise ValueError('unexpected address family')
+            if not local_addr and not remote_addr and family == 0:
+                raise ValueError('unexpected address family')
+            elif not local_addr and not remote_addr:
                 addr_pairs_info = (((family, proto), (None, None)),)
             else:
                 # join address by (family, protocol)
@@ -885,9 +881,12 @@ class BaseEventLoop(events.AbstractEventLoop):
 
                 # each addr has to have info for each (family, proto) pair
                 addr_pairs_info = [
-                    (key, addr_pair) for key, addr_pair in addr_infos.items()
-                    if not ((local_addr and addr_pair[0] is None) or
-                            (remote_addr and addr_pair[1] is None))]
+                    (key, addr_pair)
+                    for key, addr_pair in addr_infos.items()
+                    if (not local_addr or addr_pair[0] is not None)
+                    and (not remote_addr or addr_pair[1] is not None)
+                ]
+
 
                 if not addr_pairs_info:
                     raise ValueError('can not get address information')
@@ -1127,14 +1126,14 @@ class BaseEventLoop(events.AbstractEventLoop):
     def _log_subprocess(self, msg, stdin, stdout, stderr):
         info = [msg]
         if stdin is not None:
-            info.append('stdin=%s' % _format_pipe(stdin))
+            info.append(f'stdin={_format_pipe(stdin)}')
         if stdout is not None and stderr == subprocess.STDOUT:
-            info.append('stdout=stderr=%s' % _format_pipe(stdout))
+            info.append(f'stdout=stderr={_format_pipe(stdout)}')
         else:
             if stdout is not None:
-                info.append('stdout=%s' % _format_pipe(stdout))
+                info.append(f'stdout={_format_pipe(stdout)}')
             if stderr is not None:
-                info.append('stderr=%s' % _format_pipe(stderr))
+                info.append(f'stderr={_format_pipe(stderr)}')
         logger.debug(' '.join(info))
 
     @coroutine
@@ -1244,17 +1243,15 @@ class BaseEventLoop(events.AbstractEventLoop):
             if key in {'message', 'exception'}:
                 continue
             value = context[key]
-            if key == 'source_traceback':
+            if key == 'handle_traceback':
                 tb = ''.join(traceback.format_list(value))
-                value = 'Object created at (most recent call last):\n'
-                value += tb.rstrip()
-            elif key == 'handle_traceback':
+                value = 'Handle created at (most recent call last):\n' + tb.rstrip()
+            elif key == 'source_traceback':
                 tb = ''.join(traceback.format_list(value))
-                value = 'Handle created at (most recent call last):\n'
-                value += tb.rstrip()
+                value = 'Object created at (most recent call last):\n' + tb.rstrip()
             else:
                 value = repr(value)
-            log_lines.append('{}: {}'.format(key, value))
+            log_lines.append(f'{key}: {value}')
 
         logger.error('\n'.join(log_lines), exc_info=exc_info)
 
@@ -1369,10 +1366,7 @@ class BaseEventLoop(events.AbstractEventLoop):
             t0 = self.time()
             event_list = self._selector.select(timeout)
             dt = self.time() - t0
-            if dt >= 1.0:
-                level = logging.INFO
-            else:
-                level = logging.DEBUG
+            level = logging.INFO if dt >= 1.0 else logging.DEBUG
             nevent = len(event_list)
             if timeout is None:
                 logger.log(level, 'poll took %.3f ms: %s events',
@@ -1406,7 +1400,7 @@ class BaseEventLoop(events.AbstractEventLoop):
         # they will be run the next time (after another I/O poll).
         # Use an idiom that is thread-safe without using locks.
         ntodo = len(self._ready)
-        for i in range(ntodo):
+        for _ in range(ntodo):
             handle = self._ready.popleft()
             if handle._cancelled:
                 continue
@@ -1440,23 +1434,22 @@ class BaseEventLoop(events.AbstractEventLoop):
         current_wrapper = get_wrapper()
 
         if enabled:
-            if current_wrapper not in (None, wrapper):
+            if current_wrapper in (None, wrapper):
+                set_wrapper(wrapper)
+                self._coroutine_wrapper_set = True
+            else:
                 warnings.warn(
                     "loop.set_debug(True): cannot set debug coroutine "
                     "wrapper; another wrapper is already set %r" %
                     current_wrapper, RuntimeWarning)
-            else:
-                set_wrapper(wrapper)
-                self._coroutine_wrapper_set = True
+        elif current_wrapper not in (None, wrapper):
+            warnings.warn(
+                "loop.set_debug(False): cannot unset debug coroutine "
+                "wrapper; another wrapper was set %r" %
+                current_wrapper, RuntimeWarning)
         else:
-            if current_wrapper not in (None, wrapper):
-                warnings.warn(
-                    "loop.set_debug(False): cannot unset debug coroutine "
-                    "wrapper; another wrapper was set %r" %
-                    current_wrapper, RuntimeWarning)
-            else:
-                set_wrapper(None)
-                self._coroutine_wrapper_set = False
+            set_wrapper(None)
+            self._coroutine_wrapper_set = False
 
     def get_debug(self):
         return self._debug

@@ -51,17 +51,17 @@ class _ProactorBasePipeTransport(transports._FlowControlMixin,
         elif self._closing:
             info.append('closing')
         if self._sock is not None:
-            info.append('fd=%s' % self._sock.fileno())
+            info.append(f'fd={self._sock.fileno()}')
         if self._read_fut is not None:
-            info.append('read=%s' % self._read_fut)
+            info.append(f'read={self._read_fut}')
         if self._write_fut is not None:
             info.append("write=%r" % self._write_fut)
         if self._buffer:
             bufsize = len(self._buffer)
-            info.append('write_bufsize=%s' % bufsize)
+            info.append(f'write_bufsize={bufsize}')
         if self._eof_written:
             info.append('EOF written')
-        return '<%s>' % ' '.join(info)
+        return f"<{' '.join(info)}>"
 
     def _set_extra(self, sock):
         self._extra['pipe'] = sock

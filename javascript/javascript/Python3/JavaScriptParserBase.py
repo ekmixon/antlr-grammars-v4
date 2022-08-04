@@ -1,9 +1,7 @@
 
 from antlr4 import *
 
-relativeImport = False
-if __name__ is not None and "." in __name__:
-    relativeImport = True
+relativeImport = __name__ is not None and "." in __name__
 
 class JavaScriptParserBase(Parser):
     @staticmethod
@@ -35,7 +33,10 @@ class JavaScriptParserBase(Parser):
         JavaScriptParser = self.parser()
 
         nextTokenType = self._input.LT(1).type
-        return nextTokenType != JavaScriptParser.OpenBrace and nextTokenType != JavaScriptParser.Function_
+        return nextTokenType not in [
+            JavaScriptParser.OpenBrace,
+            JavaScriptParser.Function_,
+        ]
 
     def closeBrace(self) -> bool:
         JavaScriptParser = self.parser()

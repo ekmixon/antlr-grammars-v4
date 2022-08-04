@@ -8,7 +8,7 @@
 #     ;
 
 # FOR exprlist IN logical_test
-[x for x in a]
+list(a)
 
 # FOR exprlist IN logical_test comp_for
 [x for x in a for a in k]

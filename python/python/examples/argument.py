@@ -7,7 +7,7 @@
 b(x)
 
 # test comp_for
-b(x for x in a)
+b(iter(a))
 
 # test ASSIGN test
 b(x=i)

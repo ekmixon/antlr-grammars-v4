@@ -23,7 +23,7 @@
 {d : y, **x}
 
 # test COLON test comp_for
-{d : y for d, y in x}
+dict(x)
 
 # testlist_comp
 {x, q, y}
