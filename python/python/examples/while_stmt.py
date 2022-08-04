@@ -7,5 +7,3 @@ while x == 3:
 # WHILE test COLON suite else_clause
 while x == 3:
     x += 1
-else:
-    pass

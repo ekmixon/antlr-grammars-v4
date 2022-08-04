@@ -1,9 +1,7 @@
 
 from antlr4 import *
 
-relativeImport = False
-if __name__ is not None and "." in __name__:
-    relativeImport = True
+relativeImport = __name__ is not None and "." in __name__
 
 class JavaScriptLexerBase(Lexer):
     def __init__(self, *args, **kwargs):
@@ -71,7 +69,7 @@ class JavaScriptLexerBase(Lexer):
             from JavaScriptLexer import JavaScriptLexer
         if not self.lastToken or self.lastToken.type == JavaScriptLexer.OpenBrace:
             text = self.text
-            if text == '"use strict"' or text == "'use strict'":
+            if text in ['"use strict"', "'use strict'"]:
                 if self.scopeStrictModes:
                     self.scopeStrictModes.pop(-1)
                 self.useStrictCurrent = True
@@ -90,12 +88,9 @@ class JavaScriptLexerBase(Lexer):
         else:
             from JavaScriptLexer import JavaScriptLexer
 
-        if not self.lastToken:
-            # No token has been produced yet: at the start of the input,
-            # no division is possible, so a regex literal _is_ possible.
-            return True
-
-        if self.lastToken.type in [
+        return (
+            self.lastToken.type
+            not in [
                 JavaScriptLexer.Identifier,
                 JavaScriptLexer.NullLiteral,
                 JavaScriptLexer.BooleanLiteral,
@@ -107,7 +102,8 @@ class JavaScriptLexerBase(Lexer):
                 JavaScriptLexer.HexIntegerLiteral,
                 JavaScriptLexer.StringLiteral,
                 JavaScriptLexer.PlusPlus,
-                JavaScriptLexer.MinusMinus]:
-            return False
-
-        return True
+                JavaScriptLexer.MinusMinus,
+            ]
+            if self.lastToken
+            else True
+        )

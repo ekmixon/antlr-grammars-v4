@@ -78,7 +78,10 @@ class LexerAdaptor(Lexer):
             self._type = self.ACTION_CONTENT
 
     def emit(self):
-        if (self._type == self.OPTIONS or self._type == self.TOKENS or self._type == self.CHANNELS) and self._currentRuleType == Token.INVALID_TYPE:
+        if (
+            self._type in [self.OPTIONS, self.TOKENS, self.CHANNELS]
+            and self._currentRuleType == Token.INVALID_TYPE
+        ):
             self._currentRuleType = self.PREQUEL_CONSTRUCT
         elif self._type == self.OPTIONS and self._currentRuleType == self.TOKEN_REF:
             self._currentRuleType = self.OPTIONS_CONSTRUCT
@@ -94,11 +97,7 @@ class LexerAdaptor(Lexer):
             self._currentRuleType = Token.INVALID_TYPE
         elif self._type == self.ID:
             firstChar = self._input.getText(self._tokenStartCharIndex, self._tokenStartCharIndex)
-            if firstChar[0].isupper():
-                self._type = self.TOKEN_REF
-            else:
-                self._type = self.RULE_REF
-
+            self._type = self.TOKEN_REF if firstChar[0].isupper() else self.RULE_REF
             if self._currentRuleType == Token.INVALID_TYPE:  # if outside of rule def
                 self._currentRuleType = self._type  # set to inside lexer or parser rule
 

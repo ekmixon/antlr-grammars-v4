@@ -29,9 +29,13 @@ class PythonLexerBase(Lexer):
                 new_array: List[Optional[Token]] = [None for _ in range(len(self.__buffer) * 2)]
                 dest_ind = len(new_array) - (len(self.__buffer) - self.__first_tokens_ind)
 
-                new_array[0:self.__first_tokens_ind] = self.__buffer[0:self.__first_tokens_ind]
-                new_array[dest_ind:dest_ind + len(self.__buffer) - self.__first_tokens_ind] = \
-                    self.__buffer[self.__first_tokens_ind:len(self.__buffer)]
+                new_array[:self.__first_tokens_ind] = self.__buffer[:self.__first_tokens_ind]
+                new_array[
+                    dest_ind : dest_ind
+                    + len(self.__buffer)
+                    - self.__first_tokens_ind
+                ] = self.__buffer[self.__first_tokens_ind :]
+
 
                 self.__first_tokens_ind = dest_ind
                 self.__buffer = new_array
@@ -93,7 +97,7 @@ class PythonLexerBase(Lexer):
 
             indent: int = 0
 
-            for i in range(0, len(self.text)):
+            for i in range(len(self.text)):
                 indent += PythonLexerBase.tab_size - indent % PythonLexerBase.tab_size if self.text[i] == '\t' else 1
 
             self.__process_new_line(indent)
@@ -117,7 +121,7 @@ class PythonLexerBase(Lexer):
     def __process_new_line(self, indent: int) -> None:
         self.__emit_token_type(self.LINE_BREAK)
 
-        previous: int = 0 if not self.__indents else self.__indents[-1]
+        previous: int = self.__indents[-1] if self.__indents else 0
 
         if indent > previous:
             self.__indents.append(indent)

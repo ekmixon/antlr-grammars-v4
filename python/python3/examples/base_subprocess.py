@@ -45,10 +45,7 @@ class BaseSubprocessTransport(transports.SubprocessTransport):
         self._extra['subprocess'] = self._proc
 
         if self._loop.get_debug():
-            if isinstance(args, (bytes, str)):
-                program = args
-            else:
-                program = args[0]
+            program = args if isinstance(args, (bytes, str)) else args[0]
             logger.debug('process %r created: pid %s',
                          program, self._pid)
 
@@ -59,9 +56,9 @@ class BaseSubprocessTransport(transports.SubprocessTransport):
         if self._closed:
             info.append('closed')
         if self._pid is not None:
-            info.append('pid=%s' % self._pid)
+            info.append(f'pid={self._pid}')
         if self._returncode is not None:
-            info.append('returncode=%s' % self._returncode)
+            info.append(f'returncode={self._returncode}')
         elif self._pid is not None:
             info.append('running')
         else:
@@ -69,19 +66,19 @@ class BaseSubprocessTransport(transports.SubprocessTransport):
 
         stdin = self._pipes.get(0)
         if stdin is not None:
-            info.append('stdin=%s' % stdin.pipe)
+            info.append(f'stdin={stdin.pipe}')
 
         stdout = self._pipes.get(1)
         stderr = self._pipes.get(2)
         if stdout is not None and stderr is stdout:
-            info.append('stdout=stderr=%s' % stdout.pipe)
+            info.append(f'stdout=stderr={stdout.pipe}')
         else:
             if stdout is not None:
-                info.append('stdout=%s' % stdout.pipe)
+                info.append(f'stdout={stdout.pipe}')
             if stderr is not None:
-                info.append('stderr=%s' % stderr.pipe)
+                info.append(f'stderr={stderr.pipe}')
 
-        return '<%s>' % ' '.join(info)
+        return f"<{' '.join(info)}>"
 
     def _start(self, args, shell, stdin, stdout, stderr, bufsize, **kwargs):
         raise NotImplementedError
@@ -138,10 +135,7 @@ class BaseSubprocessTransport(transports.SubprocessTransport):
         return self._returncode
 
     def get_pipe_transport(self, fd):
-        if fd in self._pipes:
-            return self._pipes[fd].pipe
-        else:
-            return None
+        return self._pipes[fd].pipe if fd in self._pipes else None
 
     def _check_proc(self):
         if self._proc is None:

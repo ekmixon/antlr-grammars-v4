@@ -4,4 +4,4 @@ class GoParserBase(Parser):
 
     def closingBracket(self) -> bool:
         la = self._input.LA(1)
-        return la == self.R_PAREN or la == self.R_CURLY
+        return la in [self.R_PAREN, self.R_CURLY]

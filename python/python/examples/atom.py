@@ -33,7 +33,7 @@ def f():
 {}
 
 # OPEN_BRACE dictorsetmaker CLOSE_BRACE
-{x : y for x, y in a}
+dict(a)
 
 # dotted_name
 b.a

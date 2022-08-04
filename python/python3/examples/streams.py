@@ -156,10 +156,7 @@ class FlowControlMixin(protocols.Protocol):
     """
 
     def __init__(self, loop=None):
-        if loop is None:
-            self._loop = events.get_event_loop()
-        else:
-            self._loop = loop
+        self._loop = events.get_event_loop() if loop is None else loop
         self._paused = False
         self._drain_waiter = None
         self._connection_lost = False
@@ -254,12 +251,7 @@ class StreamReaderProtocol(FlowControlMixin, protocols.Protocol):
 
     def eof_received(self):
         self._stream_reader.feed_eof()
-        if self._over_ssl:
-            # Prevent a warning in SSLProtocol.eof_received:
-            # "returning true from eof_received()
-            # has no effect when using ssl"
-            return False
-        return True
+        return not self._over_ssl
 
 
 class StreamWriter:
@@ -284,7 +276,7 @@ class StreamWriter:
         info = [self.__class__.__name__, 'transport=%r' % self._transport]
         if self._reader is not None:
             info.append('reader=%r' % self._reader)
-        return '<%s>' % ' '.join(info)
+        return f"<{' '.join(info)}>"
 
     @property
     def transport(self):
@@ -321,15 +313,14 @@ class StreamWriter:
             exc = self._reader.exception()
             if exc is not None:
                 raise exc
-        if self._transport is not None:
-            if self._transport.is_closing():
-                # Yield to the event loop so connection_lost() may be
-                # called.  Without this, _drain_helper() would return
-                # immediately, and code that calls
-                #     write(...); yield from drain()
-                # in a loop would never call connection_lost(), so it
-                # would not see an error when the socket is closed.
-                yield
+        if self._transport is not None and self._transport.is_closing():
+            # Yield to the event loop so connection_lost() may be
+            # called.  Without this, _drain_helper() would return
+            # immediately, and code that calls
+            #     write(...); yield from drain()
+            # in a loop would never call connection_lost(), so it
+            # would not see an error when the socket is closed.
+            yield
         yield from self._protocol._drain_helper()
 
 
@@ -343,10 +334,7 @@ class StreamReader:
             raise ValueError('Limit cannot be <= 0')
 
         self._limit = limit
-        if loop is None:
-            self._loop = events.get_event_loop()
-        else:
-            self._loop = loop
+        self._loop = events.get_event_loop() if loop is None else loop
         self._buffer = bytearray()
         self._eof = False    # Whether we're done.
         self._waiter = None  # A future used by _wait_for_data()
@@ -370,7 +358,7 @@ class StreamReader:
             info.append('t=%r' % self._transport)
         if self._paused:
             info.append('paused')
-        return '<%s>' % ' '.join(info)
+        return f"<{' '.join(info)}>"
 
     def exception(self):
         return self._exception

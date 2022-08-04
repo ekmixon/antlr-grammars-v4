@@ -138,10 +138,10 @@ class BaseSelectorEventLoop(base_events.BaseEventLoop):
     def _read_from_self(self):
         while True:
             try:
-                data = self._ssock.recv(4096)
-                if not data:
+                if data := self._ssock.recv(4096):
+                    self._process_self_data(data)
+                else:
                     break
-                self._process_self_data(data)
             except InterruptedError:
                 continue
             except BlockingIOError:
@@ -287,11 +287,10 @@ class BaseSelectorEventLoop(base_events.BaseEventLoop):
             else:
                 self._selector.modify(fd, mask, (None, writer))
 
-            if reader is not None:
-                reader.cancel()
-                return True
-            else:
+            if reader is None:
                 return False
+            reader.cancel()
+            return True
 
     def _add_writer(self, fd, callback, *args):
         self._check_closed()
@@ -325,11 +324,10 @@ class BaseSelectorEventLoop(base_events.BaseEventLoop):
             else:
                 self._selector.modify(fd, mask, (reader, None))
 
-            if writer is not None:
-                writer.cancel()
-                return True
-            else:
+            if writer is None:
                 return False
+            writer.cancel()
+            return True
 
     def add_reader(self, fd, callback, *args):
         """Add a reader callback."""
@@ -478,7 +476,7 @@ class BaseSelectorEventLoop(base_events.BaseEventLoop):
             err = sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
             if err != 0:
                 # Jump to any except clause below.
-                raise OSError(err, 'Connect call failed %s' % (address,))
+                raise OSError(err, f'Connect call failed {address}')
         except (BlockingIOError, InterruptedError):
             # socket is still registered, the callback will be retried later
             pass
@@ -577,7 +575,7 @@ class _SelectorTransport(transports._FlowControlMixin,
             info.append('closed')
         elif self._closing:
             info.append('closing')
-        info.append('fd=%s' % self._sock_fd)
+        info.append(f'fd={self._sock_fd}')
         # test if the transport was closed
         if self._loop is not None and not self._loop.is_closed():
             polling = _test_selector_event(self._loop._selector,
@@ -590,14 +588,10 @@ class _SelectorTransport(transports._FlowControlMixin,
             polling = _test_selector_event(self._loop._selector,
                                            self._sock_fd,
                                            selectors.EVENT_WRITE)
-            if polling:
-                state = 'polling'
-            else:
-                state = 'idle'
-
+            state = 'polling' if polling else 'idle'
             bufsize = self.get_write_buffer_size()
-            info.append('write=<%s, bufsize=%s>' % (state, bufsize))
-        return '<%s>' % ' '.join(info)
+            info.append(f'write=<{state}, bufsize={bufsize}>')
+        return f"<{' '.join(info)}>"
 
     def abort(self):
         self._force_close(None)
@@ -732,8 +726,7 @@ class _SelectorSocketTransport(_SelectorTransport):
             else:
                 if self._loop.get_debug():
                     logger.debug("%r received EOF", self)
-                keep_open = self._protocol.eof_received()
-                if keep_open:
+                if keep_open := self._protocol.eof_received():
                     # We're keeping the connection open so the
                     # protocol can write more, but we still can't
                     # receive more, so remove the reader callback.
@@ -889,21 +882,19 @@ class _SelectorSslTransport(_SelectorTransport):
         self._loop._remove_writer(self._sock_fd)
 
         peercert = self._sock.getpeercert()
-        if not hasattr(self._sslcontext, 'check_hostname'):
-            # Verify hostname if requested, Python 3.4+ uses check_hostname
-            # and checks the hostname in do_handshake()
-            if (self._server_hostname and
-                self._sslcontext.verify_mode != ssl.CERT_NONE):
-                try:
-                    ssl.match_hostname(peercert, self._server_hostname)
-                except Exception as exc:
-                    if self._loop.get_debug():
-                        logger.warning("%r: SSL handshake failed "
-                                       "on matching the hostname",
-                                       self, exc_info=True)
-                    self._sock.close()
-                    self._wakeup_waiter(exc)
-                    return
+        if not hasattr(self._sslcontext, 'check_hostname') and (
+            self._server_hostname and self._sslcontext.verify_mode != ssl.CERT_NONE
+        ):
+            try:
+                ssl.match_hostname(peercert, self._server_hostname)
+            except Exception as exc:
+                if self._loop.get_debug():
+                    logger.warning("%r: SSL handshake failed "
+                                   "on matching the hostname",
+                                   self, exc_info=True)
+                self._sock.close()
+                self._wakeup_waiter(exc)
+                return
 
         # Add extra info that becomes available after handshake.
         self._extra.update(peercert=peercert,
@@ -977,8 +968,7 @@ class _SelectorSslTransport(_SelectorTransport):
                 try:
                     if self._loop.get_debug():
                         logger.debug("%r received EOF", self)
-                    keep_open = self._protocol.eof_received()
-                    if keep_open:
+                    if keep_open := self._protocol.eof_received():
                         logger.warning('returning true from eof_received() '
                                        'has no effect when using ssl')
                 finally:
@@ -1085,8 +1075,7 @@ class _SelectorDatagramTransport(_SelectorTransport):
             return
 
         if self._address and addr not in (None, self._address):
-            raise ValueError('Invalid address: must be None or %s' %
-                             (self._address,))
+            raise ValueError(f'Invalid address: must be None or {self._address}')
 
         if self._conn_lost and self._address:
             if self._conn_lost >= constants.LOG_THRESHOLD_FOR_CONNLOST_WRITES:

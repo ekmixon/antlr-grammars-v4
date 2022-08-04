@@ -143,17 +143,14 @@ class Lock(_ContextManagerMixin):
     def __init__(self, *, loop=None):
         self._waiters = collections.deque()
         self._locked = False
-        if loop is not None:
-            self._loop = loop
-        else:
-            self._loop = events.get_event_loop()
+        self._loop = loop if loop is not None else events.get_event_loop()
 
     def __repr__(self):
         res = super().__repr__()
         extra = 'locked' if self._locked else 'unlocked'
         if self._waiters:
-            extra = '{},waiters:{}'.format(extra, len(self._waiters))
-        return '<{} [{}]>'.format(res[1:-1], extra)
+            extra = f'{extra},waiters:{len(self._waiters)}'
+        return f'<{res[1:-1]} [{extra}]>'
 
     def locked(self):
         """Return True if lock is acquired."""
@@ -190,15 +187,14 @@ class Lock(_ContextManagerMixin):
 
         There is no return value.
         """
-        if self._locked:
-            self._locked = False
-            # Wake up the first waiter who isn't cancelled.
-            for fut in self._waiters:
-                if not fut.done():
-                    fut.set_result(True)
-                    break
-        else:
+        if not self._locked:
             raise RuntimeError('Lock is not acquired.')
+        self._locked = False
+        # Wake up the first waiter who isn't cancelled.
+        for fut in self._waiters:
+            if not fut.done():
+                fut.set_result(True)
+                break
 
 
 class Event:
@@ -213,17 +209,14 @@ class Event:
     def __init__(self, *, loop=None):
         self._waiters = collections.deque()
         self._value = False
-        if loop is not None:
-            self._loop = loop
-        else:
-            self._loop = events.get_event_loop()
+        self._loop = loop if loop is not None else events.get_event_loop()
 
     def __repr__(self):
         res = super().__repr__()
         extra = 'set' if self._value else 'unset'
         if self._waiters:
-            extra = '{},waiters:{}'.format(extra, len(self._waiters))
-        return '<{} [{}]>'.format(res[1:-1], extra)
+            extra = f'{extra},waiters:{len(self._waiters)}'
+        return f'<{res[1:-1]} [{extra}]>'
 
     def is_set(self):
         """Return True if and only if the internal flag is true."""
@@ -278,11 +271,7 @@ class Condition(_ContextManagerMixin):
     """
 
     def __init__(self, lock=None, *, loop=None):
-        if loop is not None:
-            self._loop = loop
-        else:
-            self._loop = events.get_event_loop()
-
+        self._loop = loop if loop is not None else events.get_event_loop()
         if lock is None:
             lock = Lock(loop=self._loop)
         elif lock._loop is not self._loop:
@@ -300,8 +289,8 @@ class Condition(_ContextManagerMixin):
         res = super().__repr__()
         extra = 'locked' if self.locked() else 'unlocked'
         if self._waiters:
-            extra = '{},waiters:{}'.format(extra, len(self._waiters))
-        return '<{} [{}]>'.format(res[1:-1], extra)
+            extra = f'{extra},waiters:{len(self._waiters)}'
+        return f'<{res[1:-1]} [{extra}]>'
 
     @coroutine
     def wait(self):
@@ -404,18 +393,14 @@ class Semaphore(_ContextManagerMixin):
             raise ValueError("Semaphore initial value must be >= 0")
         self._value = value
         self._waiters = collections.deque()
-        if loop is not None:
-            self._loop = loop
-        else:
-            self._loop = events.get_event_loop()
+        self._loop = loop if loop is not None else events.get_event_loop()
 
     def __repr__(self):
         res = super().__repr__()
-        extra = 'locked' if self.locked() else 'unlocked,value:{}'.format(
-            self._value)
+        extra = 'locked' if self.locked() else f'unlocked,value:{self._value}'
         if self._waiters:
-            extra = '{},waiters:{}'.format(extra, len(self._waiters))
-        return '<{} [{}]>'.format(res[1:-1], extra)
+            extra = f'{extra},waiters:{len(self._waiters)}'
+        return f'<{res[1:-1]} [{extra}]>'
 
     def _wake_up_next(self):
         while self._waiters:

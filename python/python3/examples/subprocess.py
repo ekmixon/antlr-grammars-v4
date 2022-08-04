@@ -33,7 +33,7 @@ class SubprocessStreamProtocol(streams.FlowControlMixin,
             info.append('stdout=%r' % self.stdout)
         if self.stderr is not None:
             info.append('stderr=%r' % self.stderr)
-        return '<%s>' % ' '.join(info)
+        return f"<{' '.join(info)}>"
 
     def connection_made(self, transport):
         self._transport = transport
@@ -102,7 +102,7 @@ class Process:
         self.pid = transport.get_pid()
 
     def __repr__(self):
-        return '<%s %s>' % (self.__class__.__name__, self.pid)
+        return f'<{self.__class__.__name__} {self.pid}>'
 
     @property
     def returncode(self):
@@ -166,18 +166,9 @@ class Process:
 
     @coroutine
     def communicate(self, input=None):
-        if input is not None:
-            stdin = self._feed_stdin(input)
-        else:
-            stdin = self._noop()
-        if self.stdout is not None:
-            stdout = self._read_stream(1)
-        else:
-            stdout = self._noop()
-        if self.stderr is not None:
-            stderr = self._read_stream(2)
-        else:
-            stderr = self._noop()
+        stdin = self._feed_stdin(input) if input is not None else self._noop()
+        stdout = self._read_stream(1) if self.stdout is not None else self._noop()
+        stderr = self._read_stream(2) if self.stderr is not None else self._noop()
         stdin, stdout, stderr = yield from tasks.gather(stdin, stdout, stderr,
                                                         loop=self._loop)
         yield from self.wait()

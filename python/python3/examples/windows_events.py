@@ -407,9 +407,7 @@ class IocpProactor:
         self._stopped_serving = weakref.WeakSet()
 
     def __repr__(self):
-        return ('<%s overlapped#=%s result#=%s>'
-                % (self.__class__.__name__, len(self._cache),
-                   len(self._results)))
+        return f'<{self.__class__.__name__} overlapped#={len(self._cache)} result#={len(self._results)}>'
 
     def set_loop(self, loop):
         self._loop = loop
@@ -572,13 +570,7 @@ class IocpProactor:
         return fut
 
     def _wait_for_handle(self, handle, timeout, _is_cancel):
-        if timeout is None:
-            ms = _winapi.INFINITE
-        else:
-            # RegisterWaitForSingleObject() has a resolution of 1 millisecond,
-            # round away from zero to wait *at least* timeout seconds.
-            ms = math.ceil(timeout * 1e3)
-
+        ms = _winapi.INFINITE if timeout is None else math.ceil(timeout * 1e3)
         # We only create ov so we can use ov.address as a key for the cache.
         ov = _overlapped.Overlapped(NULL)
         wait_handle = _overlapped.RegisterWaitWithQueue(
@@ -724,10 +716,7 @@ class IocpProactor:
             if fut.cancelled():
                 # Nothing to do with cancelled futures
                 pass
-            elif isinstance(fut, _WaitCancelFuture):
-                # _WaitCancelFuture must not be cancelled
-                pass
-            else:
+            elif not isinstance(fut, _WaitCancelFuture):
                 try:
                     fut.cancel()
                 except OSError as exc:

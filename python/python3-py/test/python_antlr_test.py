@@ -20,7 +20,7 @@ class Python3ErrorListener(ErrorListener):
         self._symbol = offendingSymbol.text
         stack = recognizer.getRuleInvocationStack()
         stack.reverse()
-        print("rule stack: {}".format(str(stack)))
+        print(f"rule stack: {str(stack)}")
         print("line {} : {} at {} : {}".format(str(line),
                                                str(column),
                                                str(offendingSymbol).replace(" ", u'\u23B5'),

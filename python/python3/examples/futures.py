@@ -151,10 +151,7 @@ class Future:
         loop object used by the future. If it's not provided, the future uses
         the default event loop.
         """
-        if loop is None:
-            self._loop = events.get_event_loop()
-        else:
-            self._loop = loop
+        self._loop = events.get_event_loop() if loop is None else loop
         self._callbacks = []
         if self._loop.get_debug():
             self._source_traceback = traceback.extract_stack(sys._getframe(1))
@@ -162,7 +159,7 @@ class Future:
     _repr_info = base_futures._future_repr_info
 
     def __repr__(self):
-        return '<%s %s>' % (self.__class__.__name__, ' '.join(self._repr_info()))
+        return f"<{self.__class__.__name__} {' '.join(self._repr_info())}>"
 
     # On Python 3.3 and older, objects with a destructor part of a reference
     # cycle are never destroyed. It's not more the case on Python 3.4 thanks
@@ -175,11 +172,11 @@ class Future:
                 return
             exc = self._exception
             context = {
-                'message': ('%s exception was never retrieved'
-                            % self.__class__.__name__),
+                'message': f'{self.__class__.__name__} exception was never retrieved',
                 'exception': exc,
                 'future': self,
             }
+
             if self._source_traceback:
                 context['source_traceback'] = self._source_traceback
             self._loop.call_exception_handler(context)

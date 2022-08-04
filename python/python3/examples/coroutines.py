@@ -99,8 +99,8 @@ class CoroWrapper:
         coro_repr = _format_coroutine(self)
         if self._source_traceback:
             frame = self._source_traceback[-1]
-            coro_repr += ', created at %s:%s' % (frame[0], frame[1])
-        return '<%s %s>' % (self.__class__.__name__, coro_repr)
+            coro_repr += f', created at {frame[0]}:{frame[1]}'
+        return f'<{self.__class__.__name__} {coro_repr}>'
 
     def __iter__(self):
         return self
@@ -180,8 +180,7 @@ class CoroWrapper:
             frame = getattr(gen, 'cr_frame', None)
         if frame is not None and frame.f_lasti == -1:
             msg = '%r was never yielded from' % self
-            tb = getattr(self, '_source_traceback', ())
-            if tb:
+            if tb := getattr(self, '_source_traceback', ()):
                 tb = ''.join(traceback.format_list(tb))
                 msg += ('\nCoroutine object created at '
                         '(most recent call last):\n')
@@ -224,10 +223,7 @@ def coroutine(func):
             return res
 
     if not _DEBUG:
-        if _types_coroutine is None:
-            wrapper = coro
-        else:
-            wrapper = _types_coroutine(coro)
+        wrapper = coro if _types_coroutine is None else _types_coroutine(coro)
     else:
         @functools.wraps(func)
         def wrapper(*args, **kwds):
@@ -280,7 +276,7 @@ def _format_coroutine(coro):
         coro_name = getattr(
             coro, '__qualname__',
             getattr(coro, '__name__', type(coro).__name__))
-        coro_name = '{}()'.format(coro_name)
+        coro_name = f'{coro_name}()'
 
         running = False
         try:
@@ -291,17 +287,13 @@ def _format_coroutine(coro):
             except AttributeError:
                 pass
 
-        if running:
-            return '{} running'.format(coro_name)
-        else:
-            return coro_name
-
+        return f'{coro_name} running' if running else coro_name
     coro_name = None
     if isinstance(coro, CoroWrapper):
         func = coro.func
         coro_name = coro.__qualname__
         if coro_name is not None:
-            coro_name = '{}()'.format(coro_name)
+            coro_name = f'{coro_name}()'
     else:
         func = coro
 
@@ -326,19 +318,15 @@ def _format_coroutine(coro):
         source = events._get_function_source(coro.func)
         if source is not None:
             filename, lineno = source
-        if coro_frame is None:
-            coro_repr = ('%s done, defined at %s:%s'
-                         % (coro_name, filename, lineno))
-        else:
-            coro_repr = ('%s running, defined at %s:%s'
-                         % (coro_name, filename, lineno))
+        return (
+            f'{coro_name} done, defined at {filename}:{lineno}'
+            if coro_frame is None
+            else f'{coro_name} running, defined at {filename}:{lineno}'
+        )
+
     elif coro_frame is not None:
         lineno = coro_frame.f_lineno
-        coro_repr = ('%s running at %s:%s'
-                     % (coro_name, filename, lineno))
+        return f'{coro_name} running at {filename}:{lineno}'
     else:
         lineno = coro_code.co_firstlineno
-        coro_repr = ('%s done, defined at %s:%s'
-                     % (coro_name, filename, lineno))
-
-    return coro_repr
+        return f'{coro_name} done, defined at {filename}:{lineno}'

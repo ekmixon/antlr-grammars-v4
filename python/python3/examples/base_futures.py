@@ -48,7 +48,7 @@ def _format_callbacks(cb):
         cb = '{}, <{} more>, {}'.format(format_cb(cb[0]),
                                         size - 2,
                                         format_cb(cb[-1]))
-    return 'cb=[%s]' % cb
+    return f'cb=[{cb}]'
 
 
 def _future_repr_info(future):
@@ -62,10 +62,10 @@ def _future_repr_info(future):
             # use reprlib to limit the length of the output, especially
             # for very long strings
             result = reprlib.repr(future._result)
-            info.append('result={}'.format(result))
+            info.append(f'result={result}')
     if future._callbacks:
         info.append(_format_callbacks(future._callbacks))
     if future._source_traceback:
         frame = future._source_traceback[-1]
-        info.append('created at %s:%s' % (frame[0], frame[1]))
+        info.append(f'created at {frame[0]}:{frame[1]}')
     return info
